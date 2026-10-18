@@ -12,10 +12,7 @@ It doesn't depend on anything else in this repository, so the folder can be copi
 
 ## Running it
 
-1. Download the DINOv2 model (44 MB): https://huggingface.co/onnx-community/dinov2-small/resolve/main/onnx/model_fp16.onnx
-   - Inside this repository, put it in `Downloads\DinoV2\model_fp16.onnx` at the repository root (the `/setup-models` skill does this). It's found automatically.
-   - Anywhere else, put it wherever you like and set `ModelPath` in `appsettings.json`.
-2. Run `dotnet run --project DuplicatePhotoDetect` (or open `DuplicatePhotoDetect.sln`), then open http://localhost:5180.
+Run `dotnet run --project DuplicatePhotoDetect` (or open `DuplicatePhotoDetect.sln`), then open http://localhost:5180.
 
 Requires the .NET 8 SDK and Windows (the model runs on the GPU with DirectML).
 
@@ -25,9 +22,9 @@ In the `DuplicatePhotoDetect` section of `appsettings.json`:
 
 | Setting | Default | |
 |---|---|---|
-| `ModelPath` | empty | The DINOv2 model file. Empty looks for `Downloads\DinoV2\model_fp16.onnx` in the working directory, the app's folder and their parents |
+| `ModelPath` | empty | The DINOv2 model file. Empty looks for `Model\model_fp16.onnx` in the working directory, the app's folder and their parents |
 | `UseGpu` | `true` | Run the model on the GPU with DirectML. Falls back to the CPU if the GPU can't be used |
-| `GpuDeviceId` | `1` | The DirectML adapter: 0 is usually the integrated GPU and 1 the dedicated one. The page shows which device the model is running on |
+| `GpuDeviceId` | `0` | The DirectML adapter: 0 is usually the integrated GPU and 1 the dedicated one. The page shows which device the model is running on |
 | `DefaultFolder` | empty | The folder the scan box starts with. Empty uses `Sample Images\Listing` if it can be found |
 
 ## Similarity scores

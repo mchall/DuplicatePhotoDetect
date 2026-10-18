@@ -75,10 +75,6 @@
                 <MudTd>
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                         <span>@GetDisplayName(path)</span>
-                        @* Stop the click selecting the row *@
-                        <span @onclick:stopPropagation="true">
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Disabled="Busy" OnClick="() => DeleteAsync(path)" aria-label="Delete photo" />
-                        </span>
                     </MudStack>
                 </MudTd>
             }
