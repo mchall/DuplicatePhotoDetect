@@ -4,7 +4,16 @@ using Microsoft.AspNetCore.StaticFiles;
 using MudBlazor.Services;
 using System.Diagnostics;
 
-var builder = WebApplication.CreateBuilder(args);
+// Published assets live beside the executable. Shortcuts can start the app
+// with a different working directory; development still uses the project root.
+var publishedWebRoot = Path.Combine(AppContext.BaseDirectory, "wwwroot");
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = Directory.Exists(publishedWebRoot)
+        ? AppContext.BaseDirectory
+        : Directory.GetCurrentDirectory()
+});
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
