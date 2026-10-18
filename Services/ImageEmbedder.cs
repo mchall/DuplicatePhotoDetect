@@ -1,8 +1,6 @@
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
+using SkiaSharp;
 
 namespace DuplicatePhotoDetect.Services;
 
@@ -113,31 +111,37 @@ public class ImageEmbedder
     /// </summary>
     private static float[] Preprocess(string imageLocation)
     {
-        using var img = Image.Load<Rgb24>(imageLocation);
+        // Unpremultiplied RGB preserves color values for images with transparency.
+        using var stream = File.OpenRead(imageLocation);
+        using var codec = SKCodec.Create(stream)
+            ?? throw new InvalidDataException($"Could not read image: {imageLocation}");
+        var info = new SKImageInfo(codec.Info.Width, codec.Info.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+        using var img = SKBitmap.Decode(codec, info)
+            ?? throw new InvalidDataException($"Could not decode image: {imageLocation}");
 
         // Resize so the shortest edge is 256 (up or down), then take the centre 224x224 (rather than stretching the image)
         var scale = (float)ResizeShortestEdge / Math.Min(img.Width, img.Height);
         var width = Math.Max(ResizeShortestEdge, (int)MathF.Round(img.Width * scale));
         var height = Math.Max(ResizeShortestEdge, (int)MathF.Round(img.Height * scale));
-        img.Mutate(x => x.Resize(width, height, KnownResamplers.Bicubic));
-        img.Mutate(x => x.Crop(new Rectangle((img.Width - CropSize) / 2, (img.Height - CropSize) / 2, CropSize, CropSize)));
+        using var resized = img.Resize(new SKSizeI(width, height), new SKSamplingOptions(SKCubicResampler.CatmullRom))
+            ?? throw new InvalidDataException($"Could not resize image: {imageLocation}");
+        var left = (width - CropSize) / 2;
+        var top = (height - CropSize) / 2;
+        var sourcePixels = resized.GetPixelSpan();
 
         const int channelLength = CropSize * CropSize;
         var pixels = new float[ImageLength];
-        img.ProcessPixelRows(rows =>
+        for (int y = 0; y < CropSize; y++)
         {
-            for (int y = 0; y < CropSize; y++)
+            for (int x = 0; x < CropSize; x++)
             {
-                var row = rows.GetRowSpan(y);
-                for (int x = 0; x < CropSize; x++)
-                {
-                    var offset = y * CropSize + x;
-                    pixels[offset] = (row[x].R / 255f - Mean[0]) / Std[0];
-                    pixels[channelLength + offset] = (row[x].G / 255f - Mean[1]) / Std[1];
-                    pixels[2 * channelLength + offset] = (row[x].B / 255f - Mean[2]) / Std[2];
-                }
+                var sourceOffset = (top + y) * resized.RowBytes + (left + x) * 4;
+                var offset = y * CropSize + x;
+                pixels[offset] = (sourcePixels[sourceOffset] / 255f - Mean[0]) / Std[0];
+                pixels[channelLength + offset] = (sourcePixels[sourceOffset + 1] / 255f - Mean[1]) / Std[1];
+                pixels[2 * channelLength + offset] = (sourcePixels[sourceOffset + 2] / 255f - Mean[2]) / Std[2];
             }
-        });
+        }
 
         return pixels;
     }

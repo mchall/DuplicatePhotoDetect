@@ -34,11 +34,11 @@ public class ImageStore
     }
 
     /// <summary>
-    /// All the images in the folder and its subfolders
+    /// All the images in the folder
     /// </summary>
     public static List<string> FindImages(string folder)
     {
-        return Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories)
+        return Directory.EnumerateFiles(folder, "*", SearchOption.TopDirectoryOnly)
             .Where(o => ImageExtensions.Contains(Path.GetExtension(o).ToLowerInvariant()))
             .ToList();
     }

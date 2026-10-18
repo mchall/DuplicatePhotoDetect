@@ -1,0 +1,19 @@
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.caption" Class="mb-2">@Details</MudText>
+        <div class="full-image-preview">
+            <img src="@ImageUrl" alt="@FileName" />
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Href="@ImageUrl" Target="_blank" StartIcon="@Icons.Material.Filled.OpenInNew">Open original</MudButton>
+        <MudButton OnClick="() => Dialog.Close()">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    [Parameter] public string ImageUrl { get; set; } = string.Empty;
+    [Parameter] public string FileName { get; set; } = string.Empty;
+    [Parameter] public string Details { get; set; } = string.Empty;
+}

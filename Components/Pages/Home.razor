@@ -43,13 +43,20 @@
             @foreach (var path in new[] { selected.A, selected.B })
             {
                 <MudItem xs="6">
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-1">
+                    <div class="mb-1">
                         <MudText Typo="Typo.body2" Class="text-truncate" Style="min-width: 0">@GetDisplayName(path)</MudText>
-                        <MudTooltip Text="Delete this photo">
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Disabled="Busy" OnClick="() => DeleteAsync(path)" aria-label="Delete photo" />
-                        </MudTooltip>
-                    </MudStack>
-                    <img src="@Store.GetUrl(path)" class="selected-pair-image" alt="@GetDisplayName(path)" />
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@GetFileDetails(path)</MudText>
+                    </div>
+                    <div class="selected-pair-image-container">
+                        <button type="button" class="selected-pair-preview" @onclick="() => PreviewAsync(path)" aria-label="@($"Preview {GetDisplayName(path)}")" title="Open full preview">
+                            <img src="@Store.GetUrl(path)" class="selected-pair-image" alt="@GetDisplayName(path)" />
+                        </button>
+                        <div class="selected-pair-delete">
+                            <MudTooltip Text="Delete this photo">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Disabled="Busy" OnClick="() => DeleteAsync(path)" aria-label="@($"Delete {GetDisplayName(path)}")" />
+                            </MudTooltip>
+                        </div>
+                    </div>
                 </MudItem>
             }
         </MudGrid>
@@ -91,6 +98,19 @@
     private string? _scannedFolder;
     private List<(float Similarity, string A, string B)>? _pairs;
     private (float Similarity, string A, string B)? _selected;
+    private readonly Dictionary<string, string> _dimensions = new(StringComparer.OrdinalIgnoreCase);
+
+    private Task PreviewAsync(string path)
+    {
+        var parameters = new DialogParameters<ImagePreview>
+        {
+            { dialog => dialog.ImageUrl, Store.GetUrl(path) },
+            { dialog => dialog.FileName, GetDisplayName(path) },
+            { dialog => dialog.Details, GetFileDetails(path) }
+        };
+        return Dialogs.ShowAsync<ImagePreview>(GetDisplayName(path), parameters,
+            new DialogOptions { FullScreen = true, CloseButton = true, CloseOnEscapeKey = true });
+    }
 
     protected override void OnInitialized()
     {
@@ -120,6 +140,7 @@
 
         _pairs = null;
         _selected = null;
+        _dimensions.Clear();
         var folder = _folder;
         var threshold = _threshold;
 
@@ -190,5 +211,52 @@
         return _scannedFolder != null && path.StartsWith(_scannedFolder, StringComparison.OrdinalIgnoreCase)
             ? Path.GetRelativePath(_scannedFolder, path)
             : Path.GetFileName(path);
+    }
+
+    private string GetFileDetails(string path)
+    {
+        try
+        {
+            var file = new FileInfo(path);
+            if (!file.Exists)
+                return "File details unavailable";
+
+            var size = (double)file.Length;
+            var units = new[] { "B", "KB", "MB", "GB", "TB" };
+            var unit = 0;
+            while (size >= 1024 && unit < units.Length - 1)
+            {
+                size /= 1024;
+                unit++;
+            }
+
+            if (!_dimensions.TryGetValue(path, out var dimensions))
+            {
+                try
+                {
+                    using var stream = File.OpenRead(path);
+                    using var image = SkiaSharp.SKCodec.Create(stream);
+                    dimensions = image != null
+                        ? $"{image.Info.Width} × {image.Info.Height} px"
+                        : "Dimensions unavailable";
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+                    or NotSupportedException)
+                {
+                    dimensions = "Dimensions unavailable";
+                }
+                _dimensions[path] = dimensions;
+            }
+
+            return $"{dimensions} · Size: {size:0.##} {units[unit]} · Created: {file.CreationTime:yyyy-MM-dd HH:mm}";
+        }
+        catch (IOException)
+        {
+            return "File details unavailable";
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return "File details unavailable";
+        }
     }
 }
