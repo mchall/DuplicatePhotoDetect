@@ -2,6 +2,7 @@ using DuplicatePhotoDetect.Components;
 using DuplicatePhotoDetect.Services;
 using Microsoft.AspNetCore.StaticFiles;
 using MudBlazor.Services;
+using System.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -41,4 +42,19 @@ app.MapRazorComponents<App>()
 
 app.Logger.LogInformation("DINOv2 model: {ModelPath}", Path.GetFullPath(settings.ModelPath));
 
-app.Run();
+await app.StartAsync();
+
+try
+{
+    Process.Start(new ProcessStartInfo
+    {
+        FileName = app.Urls.First(),
+        UseShellExecute = true
+    });
+}
+catch (Exception ex)
+{
+    app.Logger.LogWarning(ex, "Could not open the browser automatically.");
+}
+
+await app.WaitForShutdownAsync();
