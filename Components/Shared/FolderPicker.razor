@@ -1,0 +1,89 @@
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mb-3">Browse folders on the machine running this app.</MudText>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-3">
+            <MudTextField @bind-Value="_path" Label="Folder path" Variant="Variant.Outlined" Immediate="true" />
+            <MudButton OnClick="() => Navigate(_path)">Go</MudButton>
+        </MudStack>
+        <MudStack Row="true" Spacing="1" Class="mb-2">
+            <MudButton StartIcon="@Icons.Material.Filled.Storage" OnClick="ShowDrives">Drives</MudButton>
+            <MudButton StartIcon="@Icons.Material.Filled.ArrowUpward" Disabled="@(_currentFolder == null || Directory.GetParent(_currentFolder) == null)" OnClick="GoUp">Up</MudButton>
+        </MudStack>
+        @if (_error != null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mb-2">@_error</MudAlert>
+        }
+        <div style="height: 320px; overflow-y: auto">
+            @foreach (var folder in _folders)
+            {
+                <MudButton FullWidth="true" Style="justify-content: flex-start; text-transform: none; overflow-wrap: anywhere" StartIcon="@Icons.Material.Filled.Folder" OnClick="() => Navigate(folder)">
+                    @(Path.GetFileName(Path.TrimEndingDirectorySeparator(folder)) is { Length: > 0 } name ? name : folder)
+                </MudButton>
+            }
+            @if (_folders.Length == 0 && _error == null)
+            {
+                <MudText Typo="Typo.body2" Class="pa-3">No subfolders. You can select this folder.</MudText>
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="@(_currentFolder == null)" OnClick="SelectFolder">Select folder</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    [Parameter] public string InitialFolder { get; set; } = string.Empty;
+
+    private string _path = string.Empty;
+    private string? _currentFolder;
+    private string[] _folders = [];
+    private string? _error;
+
+    protected override void OnInitialized()
+    {
+        if (Directory.Exists(InitialFolder))
+            Navigate(InitialFolder);
+        else
+            ShowDrives();
+    }
+
+    private void Navigate(string path)
+    {
+        try
+        {
+            var fullPath = Path.GetFullPath(path);
+            var folders = Directory.GetDirectories(fullPath);
+            Array.Sort(folders, StringComparer.OrdinalIgnoreCase);
+            _currentFolder = fullPath;
+            _path = fullPath;
+            _folders = folders;
+            _error = null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            _error = $"Cannot open this folder: {ex.Message}";
+        }
+    }
+
+    private void ShowDrives()
+    {
+        _folders = Directory.GetLogicalDrives();
+        _currentFolder = null;
+        _path = string.Empty;
+        _error = null;
+    }
+
+    private void GoUp()
+    {
+        if (_currentFolder != null && Directory.GetParent(_currentFolder) is { } parent)
+            Navigate(parent.FullName);
+    }
+
+    private void SelectFolder()
+    {
+        if (_currentFolder != null)
+            Dialog.Close(DialogResult.Ok(_currentFolder));
+    }
+}

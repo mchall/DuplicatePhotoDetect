@@ -18,7 +18,10 @@
 <MudPaper Outlined="true" Class="pa-4 mb-4">
     <MudGrid>
         <MudItem xs="12" md="7">
-            <MudTextField @bind-Value="_folder" Label="Folder to scan" Variant="Variant.Outlined" Disabled="Busy" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Folder" />
+            <div class="folder-scan-field">
+                <MudTextField @bind-Value="_folder" Label="Folder to scan" Variant="Variant.Outlined" Disabled="Busy" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Folder" />
+                <MudButton Class="folder-scan-browse" Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.FolderOpen" OnClick="BrowseFolderAsync" Disabled="Busy">Browse</MudButton>
+            </div>
         </MudItem>
         <MudItem xs="6" md="2">
             <MudNumericField @bind-Value="_threshold" Label="Threshold" Variant="Variant.Outlined" Min="0.01f" Max="1f" Step="0.01f" Format="0.00" Disabled="Busy" />
@@ -100,6 +103,22 @@
     protected override void OnInitialized()
     {
         _folder = Settings.DefaultFolder;
+    }
+
+    private async Task BrowseFolderAsync()
+    {
+        var parameters = new DialogParameters<FolderPicker>
+        {
+            { picker => picker.InitialFolder, _folder }
+        };
+        var dialog = await Dialogs.ShowAsync<FolderPicker>("Select folder to scan", parameters,
+            new DialogOptions { FullWidth = true, MaxWidth = MaxWidth.Small, CloseButton = true, CloseOnEscapeKey = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: string folder })
+        {
+            _folder = folder;
+            Error = null;
+        }
     }
 
     private async Task ScanFolderAsync()

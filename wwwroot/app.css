@@ -1,3 +1,18 @@
+.folder-scan-field {
+    position: relative;
+}
+
+.folder-scan-field .mud-input {
+    padding-right: 120px;
+}
+
+.folder-scan-field .folder-scan-browse {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
 /* The selected pair stays just below the app bar while scrolling through the list of pairs */
 .selected-pair {
     position: sticky;
