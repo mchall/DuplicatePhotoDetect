@@ -38,6 +38,10 @@
 {
     @* Stays at the top of the window while scrolling through the pairs *@
     <MudPaper Elevation="3" Class="selected-pair pa-3 mb-4">
+        <MudIconButton Class="pair-navigation pair-previous" Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Large"
+                       Disabled="@(Busy || !CanNavigatePair(-1))" OnClick="() => NavigatePair(-1)" aria-label="Previous pair" title="Previous pair" />
+        <MudIconButton Class="pair-navigation pair-next" Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Large"
+                       Disabled="@(Busy || !CanNavigatePair(1))" OnClick="() => NavigatePair(1)" aria-label="Next pair" title="Next pair" />
         <MudText Typo="Typo.subtitle1" Class="mb-2">
             <b>@selected.Similarity.ToString("F3")</b> - @DuplicatePhotoService.Describe(selected.Similarity)
         </MudText>
@@ -164,6 +168,21 @@
     {
         _selected = pair;
         Error = null;
+    }
+
+    private bool CanNavigatePair(int direction)
+    {
+        if (_selected is not { } selected || _pairs == null)
+            return false;
+
+        var index = _pairs.IndexOf(selected);
+        return index >= 0 && index + direction >= 0 && index + direction < _pairs.Count;
+    }
+
+    private void NavigatePair(int direction)
+    {
+        if (!Busy && CanNavigatePair(direction))
+            SelectPair(_pairs![_pairs.IndexOf(_selected!.Value) + direction]);
     }
 
     private async Task DeleteAsync(string path)
