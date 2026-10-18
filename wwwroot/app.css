@@ -9,35 +9,6 @@
     position: relative;
 }
 
-.selected-pair-preview {
-    display: block;
-    width: 100%;
-    padding: 0;
-    border: 0;
-    border-radius: 4px;
-    background: transparent;
-    cursor: zoom-in;
-}
-
-.selected-pair-preview:focus-visible {
-    outline: 2px solid var(--mud-palette-primary);
-    outline-offset: 2px;
-}
-
-.full-image-preview {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--mud-palette-background-gray);
-}
-
-.full-image-preview img {
-    display: block;
-    max-width: 100%;
-    max-height: calc(100dvh - 200px);
-    object-fit: contain;
-}
-
 .selected-pair-delete {
     position: absolute;
     right: 8px;

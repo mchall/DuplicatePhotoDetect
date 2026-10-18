@@ -4,12 +4,11 @@
 @inject ImageStore Store
 @inject DuplicatePhotoSettings Settings
 @inject IDialogService Dialogs
-@inject ISnackbar Snackbar
 
 <PageTitle>Duplicate Photo Detect</PageTitle>
 
 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Start" Wrap="Wrap.Wrap" Class="mb-4">
-    <MudText Style="flex: 1 1 400px">Scan a folder (and its subfolders) on this machine for duplicate photos, then compare each pair and delete the ones you don't want. Uses <MudLink Href="https://huggingface.co/facebook/dinov2-small" Target="_blank">DINOv2</MudLink> embeddings.</MudText>
+    <MudText Style="flex: 1 1 400px">Scan a folder on this machine for duplicate photos, then compare each pair and delete the ones you don't want. Uses <MudLink Href="https://huggingface.co/facebook/dinov2-small" Target="_blank">DINOv2</MudLink> embeddings.</MudText>
     @if (Duplicates.Device != null)
     {
         <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Memory">Running on @Duplicates.Device</MudChip>
@@ -48,9 +47,7 @@
                         <MudText Typo="Typo.caption" Color="Color.Secondary">@GetFileDetails(path)</MudText>
                     </div>
                     <div class="selected-pair-image-container">
-                        <button type="button" class="selected-pair-preview" @onclick="() => PreviewAsync(path)" aria-label="@($"Preview {GetDisplayName(path)}")" title="Open full preview">
-                            <img src="@Store.GetUrl(path)" class="selected-pair-image" alt="@GetDisplayName(path)" />
-                        </button>
+                        <img src="@Store.GetUrl(path)" class="selected-pair-image" alt="@GetDisplayName(path)" />
                         <div class="selected-pair-delete">
                             <MudTooltip Text="Delete this photo">
                                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Disabled="Busy" OnClick="() => DeleteAsync(path)" aria-label="@($"Delete {GetDisplayName(path)}")" />
@@ -99,18 +96,6 @@
     private List<(float Similarity, string A, string B)>? _pairs;
     private (float Similarity, string A, string B)? _selected;
     private readonly Dictionary<string, string> _dimensions = new(StringComparer.OrdinalIgnoreCase);
-
-    private Task PreviewAsync(string path)
-    {
-        var parameters = new DialogParameters<ImagePreview>
-        {
-            { dialog => dialog.ImageUrl, Store.GetUrl(path) },
-            { dialog => dialog.FileName, GetDisplayName(path) },
-            { dialog => dialog.Details, GetFileDetails(path) }
-        };
-        return Dialogs.ShowAsync<ImagePreview>(GetDisplayName(path), parameters,
-            new DialogOptions { FullScreen = true, CloseButton = true, CloseOnEscapeKey = true });
-    }
 
     protected override void OnInitialized()
     {
@@ -198,7 +183,6 @@
 
         _pairs!.RemoveAll(o => !Remains(o));
 
-        Snackbar.Add($"Moved {name} to the Recycle Bin", Severity.Success);
     }
 
     private string GetRowClass((float Similarity, string A, string B) pair, int index)

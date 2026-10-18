@@ -1,6 +1,6 @@
 # Duplicate Photo Detect
 
-A standalone Blazor (MudBlazor) web app that scans a folder (and its subfolders) for duplicate photos, so you can compare each pair and delete the ones you don't want.
+A standalone Blazor (MudBlazor) web app that scans a folder for duplicate photos, so you can compare each pair and delete the ones you don't want.
 Each photo is turned into a [DINOv2](https://huggingface.co/facebook/dinov2-small) embedding and photos are compared with cosine similarity,
 which catches the same photo even after it has been resized, cropped, recompressed or brightened.
 
