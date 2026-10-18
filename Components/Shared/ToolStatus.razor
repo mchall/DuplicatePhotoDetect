@@ -1,0 +1,31 @@
+@* Busy indicator, status message, elapsed time and errors for a tool page *@
+
+@if (Busy)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-2" />
+}
+
+@if (!string.IsNullOrEmpty(Error))
+{
+    <MudAlert Severity="Severity.Error" Dense="true" Class="my-2">@Error</MudAlert>
+}
+else if (!string.IsNullOrEmpty(Status) || !string.IsNullOrEmpty(Elapsed))
+{
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="my-2" Wrap="Wrap.Wrap">
+        @if (!string.IsNullOrEmpty(Status))
+        {
+            <MudText Typo="Typo.body1">@Status</MudText>
+        }
+        @if (!string.IsNullOrEmpty(Elapsed))
+        {
+            <MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.Timer" Variant="Variant.Outlined">@Elapsed</MudChip>
+        }
+    </MudStack>
+}
+
+@code {
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public string? Status { get; set; }
+    [Parameter] public string? Elapsed { get; set; }
+    [Parameter] public string? Error { get; set; }
+}

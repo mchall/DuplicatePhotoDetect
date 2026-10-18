@@ -1,0 +1,198 @@
+@page "/"
+@inherits ToolPageBase
+@inject DuplicatePhotoService Duplicates
+@inject ImageStore Store
+@inject DuplicatePhotoSettings Settings
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
+
+<PageTitle>Duplicate Photo Detect</PageTitle>
+
+<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Start" Wrap="Wrap.Wrap" Class="mb-4">
+    <MudText Style="flex: 1 1 400px">Scan a folder (and its subfolders) on this machine for duplicate photos, then compare each pair and delete the ones you don't want. Uses <MudLink Href="https://huggingface.co/facebook/dinov2-small" Target="_blank">DINOv2</MudLink> embeddings.</MudText>
+    @if (Duplicates.Device != null)
+    {
+        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Memory">Running on @Duplicates.Device</MudChip>
+    }
+</MudStack>
+
+<MudPaper Outlined="true" Class="pa-4 mb-4">
+    <MudGrid>
+        <MudItem xs="12" md="7">
+            <MudTextField @bind-Value="_folder" Label="Folder to scan" Variant="Variant.Outlined" Disabled="Busy" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Folder" />
+        </MudItem>
+        <MudItem xs="6" md="2">
+            <MudNumericField @bind-Value="_threshold" Label="Threshold" Variant="Variant.Outlined" Min="0.01f" Max="1f" Step="0.01f" Format="0.00" Disabled="Busy" />
+        </MudItem>
+        <MudItem xs="6" md="3" Class="d-flex align-center">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.ManageSearch" OnClick="ScanFolderAsync" Disabled="Busy" FullWidth="true">Scan Folder</MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+<ToolStatus Busy="Busy" Status="@Status" Elapsed="@Elapsed" Error="@Error" />
+
+@if (_selected is { } selected)
+{
+    @* Stays at the top of the window while scrolling through the pairs *@
+    <MudPaper Elevation="3" Class="selected-pair pa-3 mb-4">
+        <MudText Typo="Typo.subtitle1" Class="mb-2">
+            <b>@selected.Similarity.ToString("F3")</b> - @DuplicatePhotoService.Describe(selected.Similarity)
+        </MudText>
+        <MudGrid Spacing="2">
+            @foreach (var path in new[] { selected.A, selected.B })
+            {
+                <MudItem xs="6">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-1">
+                        <MudText Typo="Typo.body2" Class="text-truncate" Style="min-width: 0">@GetDisplayName(path)</MudText>
+                        <MudTooltip Text="Delete this photo">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Disabled="Busy" OnClick="() => DeleteAsync(path)" aria-label="Delete photo" />
+                        </MudTooltip>
+                    </MudStack>
+                    <img src="@Store.GetUrl(path)" class="selected-pair-image" alt="@GetDisplayName(path)" />
+                </MudItem>
+            }
+        </MudGrid>
+    </MudPaper>
+}
+
+@if (_pairs != null && _pairs.Count > 0)
+{
+    <MudTable Items="_pairs" T="(float Similarity, string A, string B)" Hover="true" Dense="true" RowClassFunc="GetRowClass"
+              OnRowClick="args => SelectPair(args.Item)" RowsPerPage="25">
+        <ToolBarContent>
+            <MudText Typo="Typo.h6">Similar pairs (select one to compare)</MudText>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Similarity</MudTh>
+            <MudTh>Image 1</MudTh>
+            <MudTh>Image 2</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd><MudChip T="string" Size="Size.Small" Color="@(context.Similarity >= 0.95f ? Color.Error : Color.Warning)">@context.Similarity.ToString("F3")</MudChip></MudTd>
+            @foreach (var path in new[] { context.A, context.B })
+            {
+                <MudTd>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <span>@GetDisplayName(path)</span>
+                        @* Stop the click selecting the row *@
+                        <span @onclick:stopPropagation="true">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Disabled="Busy" OnClick="() => DeleteAsync(path)" aria-label="Delete photo" />
+                        </span>
+                    </MudStack>
+                </MudTd>
+            }
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+}
+
+@code {
+    private string _folder = string.Empty;
+    private float _threshold = 0.85f;
+    private string? _scannedFolder;
+    private List<(float Similarity, string A, string B)>? _pairs;
+    private (float Similarity, string A, string B)? _selected;
+
+    protected override void OnInitialized()
+    {
+        _folder = Settings.DefaultFolder;
+    }
+
+    private async Task ScanFolderAsync()
+    {
+        if (_threshold <= 0 || _threshold > 1)
+        {
+            Error = "Threshold must be a number between 0 and 1 (e.g. 0.95)";
+            return;
+        }
+
+        if (!Directory.Exists(_folder))
+        {
+            Error = $"Folder not found: {_folder}";
+            return;
+        }
+
+        var files = ImageStore.FindImages(_folder);
+        if (files.Count < 2)
+        {
+            Error = "Need at least 2 images in the folder";
+            return;
+        }
+
+        _pairs = null;
+        _selected = null;
+        var folder = _folder;
+        var threshold = _threshold;
+
+        await RunAsync("Scanning...", async () =>
+        {
+            _pairs = await Duplicates.FindDuplicatesAsync(files, threshold, CreateProgress());
+            _scannedFolder = folder;
+            _selected = _pairs.Count > 0 ? _pairs[0] : null;
+
+            Status = _pairs.Count == 0
+                ? $"No duplicates found in {files.Count} images (threshold {threshold})"
+                : $"Found {_pairs.Count} pairs at or above {threshold} in {files.Count} images. Select a pair to compare.";
+        });
+    }
+
+    private void SelectPair((float Similarity, string A, string B) pair)
+    {
+        _selected = pair;
+        Error = null;
+    }
+
+    private async Task DeleteAsync(string path)
+    {
+        var name = GetDisplayName(path);
+        var confirmed = await Dialogs.ShowMessageBoxAsync(
+            "Delete photo?",
+            (MarkupString)$"<b>{System.Net.WebUtility.HtmlEncode(name)}</b> will be moved to the Recycle Bin.",
+            yesText: "Delete",
+            cancelText: "Cancel",
+            options: new DialogOptions { CloseOnEscapeKey = true });
+
+        if (confirmed != true)
+            return;
+
+        try
+        {
+            await Duplicates.DeleteAsync(path);
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+            return;
+        }
+
+        // The photo is gone, so every pair it was in is too. If that includes the selected pair, keep the place in the list
+        // by selecting the next pair that's left (or the one before it, at the end of the list)
+        bool Remains((float Similarity, string A, string B) pair) => pair.A != path && pair.B != path;
+
+        if (_selected is { } selected && !Remains(selected))
+        {
+            var index = _pairs!.IndexOf(selected);
+            _selected = _pairs.Skip(index + 1).Where(Remains).Cast<(float, string, string)?>().FirstOrDefault()
+                ?? _pairs.Take(index).Where(Remains).Cast<(float, string, string)?>().LastOrDefault();
+        }
+
+        _pairs!.RemoveAll(o => !Remains(o));
+
+        Snackbar.Add($"Moved {name} to the Recycle Bin", Severity.Success);
+    }
+
+    private string GetRowClass((float Similarity, string A, string B) pair, int index)
+    {
+        return pair == _selected ? "clickable-row selected-row" : "clickable-row";
+    }
+
+    private string GetDisplayName(string path)
+    {
+        return _scannedFolder != null && path.StartsWith(_scannedFolder, StringComparison.OrdinalIgnoreCase)
+            ? Path.GetRelativePath(_scannedFolder, path)
+            : Path.GetFileName(path);
+    }
+}
