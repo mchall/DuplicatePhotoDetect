@@ -4,7 +4,7 @@ Native Windows desktop application built with egui/eframe and the `ort` ONNX Run
 
 ## Build and run
 
-Requires Windows x64, stable Rust with the MSVC toolchain, and the Visual Studio C++ build tools / Windows SDK. No .NET SDK or old Blazor checkout is required.
+Requires Windows x64, stable Rust with the MSVC toolchain, and the Visual Studio C++ build tools / Windows SDK. 
 
 ```powershell
 cargo run --locked
