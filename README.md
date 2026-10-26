@@ -2,6 +2,8 @@
 
 Native Windows desktop application built with egui/eframe and the `ort` ONNX Runtime binding. 
 
+![Screenshot](screenshot.jpg)
+
 ## Build and run
 
 Requires Windows x64, stable Rust with the MSVC toolchain, and the Visual Studio C++ build tools / Windows SDK. 
